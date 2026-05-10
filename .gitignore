@@ -1,0 +1,48 @@
+# Data files (too large for git)
+data/raw/
+data/processed/
+*.edf
+*.bdf
+*.fif
+*.set
+*.fdt
+*.vhdr
+*.eeg
+*.vmrk
+
+# Model artifacts
+results/models/*.pt
+results/models/*.pkl
+results/models/*.joblib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Keep these directory structures (empty .gitkeep files)
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!results/models/.gitkeep
