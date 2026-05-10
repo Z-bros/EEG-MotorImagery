@@ -105,3 +105,5 @@ MIT
 ## Author
 
 *Your name and contact info here.*
+# EEG-MotorImagery
+A Beginner EEG Analysis with PhysioNet EEG Motor Movement/Imagery Dataset
