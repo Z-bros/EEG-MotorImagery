@@ -152,7 +152,7 @@ def detect_bad_channels(
     """
     if method == "pyprep":
         try:
-            from pyprep.find_noisy_channels import NoisyChannels
+            from pyprep.find_noisy_channels import NoisyChannels # type: ignore # type: ignore
         except ImportError as e:
             raise ImportError(
                 "pyprep is not installed. Run `pip install pyprep` or "
