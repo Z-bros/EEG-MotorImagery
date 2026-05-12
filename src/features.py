@@ -19,11 +19,11 @@ import numpy as np
 import mne
 from mne.time_frequency import tfr_morlet
 
-
 def compute_evoked(
     epochs: mne.Epochs,
     condition: str,
     picks: Optional[Union[str, List[str]]] = None,
+    return_epochs: bool = False,
 ) -> mne.Evoked:
     """
     Compute the trial-averaged ERP for a single condition.
@@ -63,14 +63,12 @@ def compute_evoked(
             f"(available: {list(epochs.event_id.keys())})"
         )
 
-    # Subset to condition, then average. Using .copy() because epochs[cond]
-    # returns a view and we don't want any downstream mutation surprises.
-    evoked = epochs[condition].copy().average(picks=picks)
-
-    # Set a human-readable comment for downstream plotting (MNE uses this
-    # in legends automatically when passed to plot_compare_evokeds).
+    epochs_subset = epochs[condition].copy()
+    evoked = epochs_subset.average(picks=picks)
     evoked.comment = condition
 
+    if return_epochs:
+        return evoked, epochs_subset
     return evoked
 
 

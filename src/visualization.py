@@ -67,33 +67,45 @@ def plot_erp_butterfly(
 
 
 def plot_erp_comparison(
-    evokeds: Dict[str, mne.Evoked],
+    epochs: mne.Epochs,
     picks: List[str],
+    conditions: Optional[List[str]] = None,
     title: Optional[str] = None,
+    ci: float = 0.95,
 ) -> plt.Figure:
     """
-    Overlay condition ERPs at selected channels.
+    Overlay condition ERPs at selected channels with bootstrap CIs.
+
+    For single-subject data, getting CIs requires passing one Evoked
+    per trial (so plot_compare_evokeds has a list to compute variance
+    over). We construct these per-trial Evokeds inside this function
+    so callers don't have to think about MNE's API quirk.
 
     Parameters
     ----------
-    evokeds : dict
-        {condition_label: mne.Evoked}. MNE's plot_compare_evokeds will
-        plot one line per condition with a confidence band derived from
-        per-trial variance — important because the ERP-as-mean hides
-        the per-trial variability. The dict keys become the legend.
-    picks : list
-        Typically ['C3', 'C4'] to tell the lateralization story. One
-        subplot per channel.
-    title : str | None
-        Plot title.
-
-    Returns
-    -------
-    fig : matplotlib.figure.Figure
+    epochs : mne.Epochs
+        Cleaned epochs containing the conditions to plot.
+    picks : list of str
+        Channels to plot, one subplot each.
+    conditions : list of str | None
+        Subset of conditions from epochs.event_id. None = all conditions.
+    ci : float
+        Bootstrap CI width (default 0.95 = 95%).
     """
-    # plot_compare_evokeds returns a list (one fig per channel by default)
-    # We want them side-by-side in a single figure for portfolio-friendly
-    # layout, so we use the axes= argument with our own subplot grid.
+    if conditions is None:
+        conditions = list(epochs.event_id.keys())
+
+    # Build {condition: [Evoked_trial0, Evoked_trial1, ...]} so
+    # plot_compare_evokeds can bootstrap a CI over the trial list.
+    # Each "Evoked" is a single trial wrapped as an Evoked object
+    # (by averaging a 1-trial Epochs — average() on 1 trial == that trial).
+    evokeds_dict = {}
+    for cond in conditions:
+        cond_epochs = epochs[cond]
+        evokeds_dict[cond] = [
+            cond_epochs[i].average() for i in range(len(cond_epochs))
+        ]
+
     n_picks = len(picks)
     fig, axes = plt.subplots(1, n_picks, figsize=(6 * n_picks, 4),
                              sharey=True)
@@ -101,16 +113,13 @@ def plot_erp_comparison(
         axes = [axes]
 
     for ax, ch in zip(axes, picks):
-        # ci=0.95 gives a 95% bootstrap CI from trial variance — this is
-        # what makes the visual T1-vs-T2 comparison honest rather than
-        # showing only the means.
         mne.viz.plot_compare_evokeds(
-            evokeds,
+            evokeds_dict,
             picks=ch,
             axes=ax,
-            ci=0.95,
+            ci=ci,
             show=False,
-            show_sensors=False,  # we'd rather label the channel in title
+            show_sensors=False,
             title=ch,
             legend='upper right' if ax is axes[0] else False,
         )
@@ -118,9 +127,7 @@ def plot_erp_comparison(
     if title is not None:
         fig.suptitle(title, fontsize=12)
     fig.tight_layout()
-
     return fig
-
 
 def plot_erp_topomap_series(
     evoked: mne.Evoked,
