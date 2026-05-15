@@ -346,7 +346,6 @@ def get_motor_channels() -> dict:
 # Standardization and scaling live in the classifier Pipeline in notebook 04,
 # NOT here. These functions return raw log-power and log-variance.
 
-from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
 import numpy as np
