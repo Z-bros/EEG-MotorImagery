@@ -46,3 +46,46 @@ env/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !results/models/.gitkeep
+
+# Data — regeneratable
+data/raw/
+data/processed/
+data/features/
+data/models/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+env/
+.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# MNE / EEG-specific
+*.fif
+*.edf
+*.set
+*.fdt
+mne_data/
+
+# Notebook outputs are NOT in gitignore — we want them committed
+# for portfolio rendering on github.com.
