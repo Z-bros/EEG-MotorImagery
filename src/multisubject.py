@@ -42,6 +42,7 @@ different names):
 
 from __future__ import annotations
 
+import sys
 import json
 import logging
 import time
@@ -71,8 +72,13 @@ from statsmodels.stats.multitest import multipletests
 # Sibling modules. Absolute imports so this file works both when imported
 # as `src.multisubject` (package context) and when joblib workers re-import
 # it in fresh subprocesses (where relative imports break).
-from preprocessing import preprocess_subject  # type: ignore
-from features import (  # type: ignore
+
+REPO_ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
+sys.path.insert(0, str(REPO_ROOT))           # for `from src.X import ...`
+sys.path.insert(0, str(REPO_ROOT / "src"))   # for `from X import ...`
+
+from src.preprocessing import preprocess_subject  # type: ignore
+from src.features import (  # type: ignore
     compute_motor_bandpower,
     compute_lateralization_indices,
     CSPFeatures,
