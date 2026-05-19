@@ -1,6 +1,6 @@
 """
 PyTorch data + training infrastructure for Chunk 6.
-
+ 
 Three pieces:
 - `EEGDataset`: holds raw (X, y), per-channel normalization stats (computed at
   fit time on training data and stored as buffers), and the training-only
@@ -11,7 +11,7 @@ Three pieces:
   thing. Lets us reuse Chunk 5's `within_subject_cv` / `cross_subject_cv`
   drivers from `multisubject.py` without writing a deep-learning-specific
   CV loop.
-
+ 
 Design decisions worth surfacing
 --------------------------------
 - Normalization stats live on the Dataset, not on the classifier or a
@@ -30,14 +30,14 @@ Design decisions worth surfacing
 - Early stopping watches balanced_accuracy on a held-out 15% of the *training*
   fold (NOT the test fold, which would leak). The held-out slice is stratified.
 """
-
+ 
 from __future__ import annotations
-
+ 
 import copy
 import random
 from dataclasses import dataclass
 from typing import Optional
-
+ 
 import numpy as np
 import torch
 import torch.nn as nn
@@ -53,19 +53,19 @@ from src.eegnetmods import build_model
 # ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
-
+ 
 @dataclass
 class NormStats:
     """Per-channel mean and std fit on training data. Shape (n_channels,)."""
     mean: np.ndarray
     std: np.ndarray
     raw_std: np.ndarray  # un-normalized std, used to scale noise augmentation
-
-
+ 
+ 
 class EEGDataset(Dataset):
     """
     EEG epochs dataset.
-
+ 
     Parameters
     ----------
     X : np.ndarray, shape (n_epochs, n_channels, n_times)
@@ -85,7 +85,7 @@ class EEGDataset(Dataset):
     rng : np.random.Generator or None
         For reproducible augmentation. If None, a default generator is created.
     """
-
+ 
     def __init__(
         self,
         X: np.ndarray,
@@ -101,7 +101,7 @@ class EEGDataset(Dataset):
             raise ValueError(f"X must be (n_epochs, n_channels, n_times); got {X.shape}")
         if X.shape[0] != y.shape[0]:
             raise ValueError(f"X/y length mismatch: {X.shape[0]} vs {y.shape[0]}")
-
+ 
         self.X = X.astype(np.float32, copy=False)
         self.y = y.astype(np.int64, copy=False)
         self.augment = augment
@@ -109,7 +109,7 @@ class EEGDataset(Dataset):
         self.channel_dropout_p = channel_dropout_p
         self.noise_scale = noise_scale
         self.rng = rng if rng is not None else np.random.default_rng()
-
+ 
         # Either fit or accept normalization stats.
         if norm_stats is None:
             # Per-channel: average over (epochs, times) -> shape (n_channels,)
@@ -118,31 +118,31 @@ class EEGDataset(Dataset):
             self.norm_stats = NormStats(mean=mean, std=std, raw_std=std.copy())
         else:
             self.norm_stats = norm_stats
-
+ 
         self.n_channels = X.shape[1]
         self.n_times = X.shape[2]
         self.crop_len = max(1, int(round(self.n_times * self.crop_frac)))
-
+ 
     def __len__(self) -> int:
         return self.X.shape[0]
-
+ 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.X[idx]  # (C, T)
         y = self.y[idx]
-
+ 
         if self.augment:
             x = self._apply_augmentation(x)
-
+ 
         # Normalize per-channel. Broadcasting: (C, T) - (C, 1).
         x = (x - self.norm_stats.mean[:, None]) / self.norm_stats.std[:, None]
-
+ 
         # Insert the singleton channel-axis the conv layers expect: (1, C, T).
         return torch.from_numpy(x).unsqueeze(0).float(), torch.tensor(y, dtype=torch.long)
-
+ 
     def _apply_augmentation(self, x: np.ndarray) -> np.ndarray:
         """Returns a copy with augmentations applied (does not mutate self.X)."""
         x = x.copy()
-
+ 
         # Random time crop: pick a start, take crop_len samples, zero-pad
         # symmetrically back to n_times so downstream shape stays constant.
         if self.crop_len < self.n_times:
@@ -152,7 +152,7 @@ class EEGDataset(Dataset):
             pad_right = self.n_times - self.crop_len - pad_left
             x = np.pad(cropped, ((0, 0), (pad_left, pad_right)),
                        mode="constant", constant_values=0.0)
-
+ 
         # Channel dropout: zero out a random subset of channels independently
         # per sample. Applied on un-normalized data so the zero is a true
         # absent-signal (post-normalization the zero would represent the
@@ -160,21 +160,21 @@ class EEGDataset(Dataset):
         if self.channel_dropout_p > 0:
             mask = self.rng.random(self.n_channels) > self.channel_dropout_p
             x = x * mask[:, None]
-
+ 
         # Gaussian noise: σ proportional to the un-normalized channel std,
         # so the perturbation is on the order of 10% of natural channel variance.
         if self.noise_scale > 0:
             noise = self.rng.standard_normal(x.shape).astype(np.float32)
             noise *= (self.noise_scale * self.norm_stats.raw_std[:, None])
             x = x + noise
-
+ 
         return x
-
-
+ 
+ 
 # ---------------------------------------------------------------------------
 # Training loop
 # ---------------------------------------------------------------------------
-
+ 
 def _set_seed(seed: int) -> None:
     """Set all the seeds. Note: torch.use_deterministic_algorithms is set in
     the notebook (it raises if any nondet op is encountered, so we leave that
@@ -184,8 +184,8 @@ def _set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-
+ 
+ 
 def train_one_fold(
     model: nn.Module,
     train_ds: EEGDataset,
@@ -201,7 +201,7 @@ def train_one_fold(
 ) -> dict:
     """
     Train one fold with early stopping on val balanced_accuracy.
-
+ 
     Returns
     -------
     dict with keys:
@@ -212,24 +212,24 @@ def train_one_fold(
     """
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
+ 
     if class_weights is not None:
         cw = torch.tensor(class_weights, dtype=torch.float32, device=device)
         criterion = nn.CrossEntropyLoss(weight=cw)
     else:
         criterion = nn.CrossEntropyLoss()
-
+ 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,
                               num_workers=0, pin_memory=(device == "cuda"))
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
                             num_workers=0, pin_memory=(device == "cuda"))
-
+ 
     best_val_bacc = -np.inf
     best_state = None
     epochs_since_improve = 0
     history = []
     stopped_epoch = max_epochs
-
+ 
     for epoch in range(1, max_epochs + 1):
         # ---- train ----
         model.train()
@@ -243,7 +243,7 @@ def train_one_fold(
             loss.backward()
             optimizer.step()
             train_losses.append(loss.item())
-
+ 
         # ---- validate ----
         model.eval()
         val_losses = []
@@ -261,13 +261,13 @@ def train_one_fold(
         val_bacc = balanced_accuracy_score(true, preds)
         train_loss = float(np.mean(train_losses))
         val_loss = float(np.mean(val_losses))
-
+ 
         history.append({"epoch": epoch, "train_loss": train_loss,
                         "val_loss": val_loss, "val_bacc": val_bacc})
         if verbose:
             print(f"  epoch {epoch:3d}  train_loss={train_loss:.4f}  "
                   f"val_loss={val_loss:.4f}  val_bacc={val_bacc:.3f}")
-
+ 
         # ---- early stopping ----
         if val_bacc > best_val_bacc:
             best_val_bacc = val_bacc
@@ -278,28 +278,28 @@ def train_one_fold(
             if epochs_since_improve >= patience:
                 stopped_epoch = epoch
                 break
-
+ 
     return {
         "best_state": best_state,
         "best_val_bacc": float(best_val_bacc),
         "history": history,
         "stopped_epoch": stopped_epoch,
     }
-
-
+ 
+ 
 # ---------------------------------------------------------------------------
 # sklearn-compatible wrapper
 # ---------------------------------------------------------------------------
-
+ 
 class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
     """
     Sklearn-compatible deep classifier.
-
+ 
     Wraps model construction + normalization-fit + training + inference into a
     single estimator with fit/predict/predict_proba. Use directly with
     StratifiedKFold or GroupKFold; the CV drivers in multisubject.py see a
     normal estimator.
-
+ 
     Parameters
     ----------
     model_name : {'eegnet', 'shallow'}
@@ -319,7 +319,7 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
         Base seed. Each fit() call adds `fold_index` (set externally via
         set_fold_index) so CV reproducibility is deterministic per fold.
     """
-
+ 
     def __init__(
         self,
         model_name: str = "eegnet",
@@ -350,17 +350,17 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
         # Mutable fold index; set externally between CV folds if you want
         # seeded variation. Default 0.
         self._fold_index = 0
-
+ 
     def set_fold_index(self, idx: int) -> "TorchEEGClassifier":
         """Set the per-fold seed offset. Returns self for chaining."""
         self._fold_index = int(idx)
         return self
-
+ 
     def _resolve_device(self) -> str:
         if self.device == "cuda" and not torch.cuda.is_available():
             return "cpu"
         return self.device
-
+ 
     def fit(self, X: np.ndarray, y: np.ndarray) -> "TorchEEGClassifier":
         # Shape contract
         if X.ndim != 3:
@@ -371,11 +371,11 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
         if X.shape[2] != self.n_times:
             raise ValueError(f"n_times mismatch: got {X.shape[2]}, "
                              f"classifier configured for {self.n_times}")
-
+ 
         seed = self.random_state + self._fold_index
         _set_seed(seed)
         rng = np.random.default_rng(seed)
-
+ 
         # Stratified inner train/val split for early stopping.
         # If a class has fewer than 2 samples, StratifiedShuffleSplit fails;
         # we fall back to a plain random split with a warning condition.
@@ -393,10 +393,10 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
             splitter = StratifiedShuffleSplit(
                 n_splits=1, test_size=self.val_frac, random_state=seed)
             train_idx, val_idx = next(splitter.split(X, y))
-
+ 
         X_tr, y_tr = X[train_idx], y[train_idx]
         X_val, y_val = X[val_idx], y[val_idx]
-
+ 
         # Datasets. Train Dataset computes its own norm stats from X_tr.
         # Val Dataset reuses those stats — critical for no-leakage normalization.
         train_ds = EEGDataset(
@@ -404,17 +404,17 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
         val_ds = EEGDataset(
             X_val, y_val, norm_stats=train_ds.norm_stats, augment=False)
         self.norm_stats_ = train_ds.norm_stats  # stash for predict-time
-
+ 
         # Class weights from training fold class counts.
         cw = compute_class_weight(class_weight="balanced",
                                   classes=classes, y=y_tr)
-
+ 
         # Build model fresh each fit().
         model_kwargs = self.model_kwargs or {}
         model = build_model(self.model_name, n_channels=self.n_channels,
                             n_times=self.n_times, n_classes=len(classes),
                             **model_kwargs)
-
+ 
         device = self._resolve_device()
         result = train_one_fold(
             model, train_ds, val_ds,
@@ -425,15 +425,52 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
             patience=self.patience,
             class_weights=cw,
         )
-
+ 
         # Restore best weights and stash.
         model.load_state_dict(result["best_state"])
         model.eval()
         self.model_ = model
         self.device_ = device
         self.train_result_ = {k: v for k, v in result.items() if k != "best_state"}
+ 
+        # ----------------------------------------------------------------
+        # §8 prep: snapshot spatial filters + rank them by training-data
+        # activation magnitude. Done here so §8 in the notebook can read
+        # clf.spatial_filters_ and clf.filter_activations_ without needing
+        # to re-attach the training data.
+        # ----------------------------------------------------------------
+        self.spatial_filters_ = model.get_spatial_filters().numpy()
+ 
+        spatial_layer = (getattr(model, "conv_spatial", None)
+                         or getattr(model, "conv_spat", None))
+        if spatial_layer is None:
+            self.filter_activations_ = None
+        else:
+            activations = []
+ 
+            def _hook(_module, _inp, out):
+                # out: (B, n_filters, 1, T). Mean |.| over all dims but filters.
+                activations.append(
+                    out.detach().abs().mean(dim=(0, 2, 3)).cpu().numpy())
+ 
+            handle = spatial_layer.register_forward_hook(_hook)
+            try:
+                infer_ds = EEGDataset(X_tr, y_tr,
+                                      norm_stats=self.norm_stats_,
+                                      augment=False)
+                infer_loader = DataLoader(infer_ds,
+                                          batch_size=self.batch_size,
+                                          shuffle=False)
+                with torch.no_grad():
+                    for xb, _ in infer_loader:
+                        xb = xb.to(device, non_blocking=True)
+                        _ = model(xb)
+            finally:
+                handle.remove()
+            self.filter_activations_ = np.stack(activations, axis=0).mean(axis=0)
+ 
         return self
-
+ 
     def _infer(self, X: np.ndarray) -> np.ndarray:
         """Return logits as ndarray, shape (n_epochs, n_classes)."""
         ds = EEGDataset(X, np.zeros(len(X), dtype=np.int64),
@@ -445,11 +482,11 @@ class TorchEEGClassifier(BaseEstimator, ClassifierMixin):
                 xb = xb.to(self.device_, non_blocking=True)
                 all_logits.append(self.model_(xb).cpu().numpy())
         return np.concatenate(all_logits, axis=0)
-
+ 
     def predict(self, X: np.ndarray) -> np.ndarray:
         logits = self._infer(X)
         return self.classes_[logits.argmax(axis=1)]
-
+ 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         logits = self._infer(X)
         # Softmax in numpy (stable form)
