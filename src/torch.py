@@ -47,7 +47,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, Dataset
 
-from src.models import build_model
+from src.eegnetmods import build_model
 
 
 # ---------------------------------------------------------------------------
