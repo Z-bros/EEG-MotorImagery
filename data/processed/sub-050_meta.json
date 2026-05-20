@@ -1,0 +1,14 @@
+{
+  "subject_id": 50,
+  "pipeline_version": "v1",
+  "success": true,
+  "n_bad_channels": 0,
+  "bad_channels": [],
+  "n_rejected_ics": 0,
+  "rejected_ics": [],
+  "autoreject_retention": 1.0,
+  "n_epochs_t1": 23,
+  "n_epochs_t2": 22,
+  "runtime_seconds": 10682.453258037567,
+  "error": null
+}

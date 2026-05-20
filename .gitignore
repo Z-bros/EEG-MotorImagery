@@ -72,7 +72,7 @@ data/processed/*
 # Model artifacts and large caches
 # ============================================
 # The within-subject Shallow filters npz is 200 MB — too big for GitHub
-results/shallow_within_full_filters.npz
+dashboard/shallow_within_full_filters.npz
 
 # All other .pkl/.joblib model files in case any get generated
 *.pkl
