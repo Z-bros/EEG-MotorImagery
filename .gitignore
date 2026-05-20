@@ -1,92 +1,82 @@
-# Data files (too large for git)
-data/raw/
-data/processed/
-*.edf
-*.bdf
-*.fif
-*.set
-*.fdt
-*.vhdr
-*.eeg
-*.vmrk
-
-# Model artifacts
-results/models/*.pt
-results/models/*.pkl
-results/models/*.joblib
-
+# ============================================
 # Python
+# ============================================
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-.pytest_cache/
-
-# Virtual environments
-venv/
-env/
-.venv/
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-
-# IDE
-.vscode/
-.idea/
-*.swp
-.DS_Store
-
-# Streamlit
-.streamlit/secrets.toml
-
-# Keep these directory structures (empty .gitkeep files)
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!results/models/.gitkeep
-
-# Data — regeneratable
-data/raw/
-data/processed/
-data/features/
-data/models/
-data/results_ch5/
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
 *.so
 .Python
 build/
-develop-eggs/
 dist/
 *.egg-info/
+.pytest_cache/
 
+# ============================================
 # Jupyter
+# ============================================
 .ipynb_checkpoints/
 
+# ============================================
 # Environments
+# ============================================
 .venv/
 venv/
 env/
 .env
 
+# ============================================
 # OS / IDE
+# ============================================
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 *.swp
 
-# MNE / EEG-specific
-*.fif
+# ============================================
+# Streamlit
+# ============================================
+.streamlit/secrets.toml
+
+# ============================================
+# Data — large / regeneratable
+# ============================================
+# Raw EDF files are downloaded from PhysioNet on first use
+data/raw/
 *.edf
+*.bdf
 *.set
 *.fdt
+*.vhdr
+*.eeg
+*.vmrk
 mne_data/
 
-# Notebook outputs are NOT in gitignore — we want them committed
-# for portfolio rendering on github.com.
+# Cached features / intermediate results
+data/features/
+data/results_ch5/
+
+# Processed .fif files: ignore by default, but commit a demo subset
+data/processed/*
+!data/processed/sub-001_epo.fif
+!data/processed/sub-001_meta.json
+!data/processed/sub-005_epo.fif
+!data/processed/sub-005_meta.json
+!data/processed/sub-010_epo.fif
+!data/processed/sub-010_meta.json
+!data/processed/sub-050_epo.fif
+!data/processed/sub-050_meta.json
+!data/processed/sub-100_epo.fif
+!data/processed/sub-100_meta.json
+
+# ============================================
+# Model artifacts and large caches
+# ============================================
+# The within-subject Shallow filters npz is 200 MB — too big for GitHub
+results/shallow_within_full_filters.npz
+
+# All other .pkl/.joblib model files in case any get generated
+*.pkl
+*.joblib
+# NOTE: results/production_shallowconvnet.pt is kept (it's ~500 KB)
+#       If you save large .pt files elsewhere, uncomment:
+# results/models/*.pt
