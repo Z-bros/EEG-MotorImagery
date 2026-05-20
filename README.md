@@ -9,8 +9,8 @@ cross-subject validation.
 **Best result:** ShallowConvNet at 0.802 balanced accuracy (cross-subject,
 GroupKFold, 109 subjects). +0.24 over the best classical baseline.
 
-📊 **Interactive dashboard:** [Streamlit app link once deployed]
-📓 **Live notebook (Chunk 6, deep learning):** [Kaggle link]
+📊 **Interactive dashboard:** Use streamlit and run locally [Deployed link is coming soon]
+📓 **Live notebook (Chunk 6, deep learning):** https://www.kaggle.com/code/zidanefatuna/eegnet-for-github-com-z-bros-eeg-motorimagery
 
 ---
 
